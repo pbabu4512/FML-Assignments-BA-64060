@@ -1,0 +1,120 @@
+---
+title: "FML Assignment 2"
+author: "Pooja Babu"
+date: "2025-02-04"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Loading the required packages
+
+```{r cars}
+library(caret)
+library(ISLR)
+```
+
+## View the Carseats dataset
+
+```{r}
+head(Carseats,n=10)
+```
+
+## Checking the dimensions of the dataset
+
+```{r}
+dim(Carseats)
+```
+
+## Summary of the dataset
+
+```{r}
+summary(Carseats)
+```
+
+## Splitting the dataset into 3 sets (training_data, validation_data, test_data)
+
+### Step 1: Partitioning carseats datasets into temp (300 records) and test (100 records)
+```{r}
+temp = createDataPartition(y=1:nrow(Carseats),p=300/nrow(Carseats),list = FALSE)
+```
+### Checking the dimensions of temp dataset
+```{r}
+dim(temp)
+```
+
+### Subsetting the dataset using temp so that the values in train_index (300 records) does not repeat in test_data (100 records)
+```{r}
+train_index=Carseats[temp,]
+```
+
+
+```{r}
+test_data=Carseats[-temp,]
+```
+### Checking the dimensions of train_index and test_data
+```{r}
+dim(train_index)
+```
+```{r}
+dim(test_data)
+```
+## Step 2: Now we divide the train_index into 2 sets in such a way that 200 records are put in training_data and 100 records in validation_data.
+
+### We create a temp_train_index to store the 200 records that we select randomly from the train_index
+
+```{r}
+temp_train_index<-createDataPartition(y=1:nrow(train_index),p=200/nrow(train_index),list = FALSE)
+```
+### Checking the dimensions of temp_train_index
+```{r}
+dim(temp_train_index)
+```
+### Subsetting the data into training_data (200 records) and validation_data(100 records)
+```{r}
+training_data=train_index[temp_train_index,]
+```
+
+
+```{r}
+validation_data=train_index[-temp_train_index,]
+```
+### Checking the dimensions of training_data and validation_data
+```{r}
+dim(training_data)
+```
+
+```{r}
+dim(validation_data)
+```
+## Checking the first 6 rows of all the datasets
+```{r}
+head(validation_data)
+```
+
+
+```{r}
+head(training_data)
+```
+
+
+```{r}
+head(test_data)
+```
+## Summary of training_data , validation_data and test_data
+```{r}
+summary(training_data)
+```
+
+```{r}
+summary(validation_data)
+```
+
+```{r}
+summary(test_data)
+```
+
+
+
