@@ -1,0 +1,262 @@
+---
+title: "FML Assignment 6"
+author: "Pooja Babu"
+date: "2025-04-14"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+In this assignment, we analyzed a wine dataset using hierarchical as well as non-hierarchical clustering methods. Following data normalization, AGNES and DIANA were both applied. AGNES (Ward linkage) thus produced more cohesive clusters due to its higher agglomerative coefficient. We have calculated and then visualized median values with Alcohol, Ash, also Color Intensity by categorical groupings in order to uncover patterns within wine characteristics. In addition, K-Means and DBSCAN were explored as other methods for clustering. K-Means produced defined clusters with a decent silhouette score, while DBSCAN found certain noise points but was subject to parameter tuning. AGNES and K-Means were generally most effective for this data.
+
+```{r cars}
+#Loading the required libraries
+library(e1071)
+library(readr)
+library(dplyr)
+library(tinytex)
+library(cluster)
+library(dbscan)
+library(fpc)
+library(ggplot2)
+library(gridExtra)
+library(factoextra)
+```
+
+```{r}
+# Importing the dataset.
+wine.data <- read_csv("C:/Users/pooja/Downloads/Wine-clustering-HC.csv")
+```
+
+```{r}
+#Checking for missing values
+sum(is.na(wine.data))
+```
+```{r}
+# Checking the dimensions of the dataset
+dim(wine.data)
+```
+```{r}
+# Checking the key statistics of the dataset
+summary(wine.data)
+```
+```{r}
+# Checking the structure of the dataset.
+str(wine.data)
+```
+
+## Question 1.A. Use the wine dataset to perform hierarchical clustering using both AGNES and
+DIANA.
+
+```{r}
+# Normalizing the dataset excluding the categorical variables.
+num.only <-scale(wine.data %>% select(-Alcohol_Level, -Ash_Content, -Color_Intensity_Group))
+```
+
+```{r}
+# Using AGNES method comparing the single, complete, average, and ward linkage
+
+AC.single <-agnes(num.only,method = "single")
+print(paste("Single Linkage AC:",AC.single$ac))
+
+
+AC.complete <-agnes(num.only,method = "complete")
+print(paste("Complete Linkage AC:",AC.complete$ac))
+
+AC.avg <-agnes(num.only,method = "average")
+print(paste("Average Linkage AC:",AC.avg$ac))
+
+AC.ward <- agnes(num.only, method = "ward")
+print(paste("Ward Linkage AC:",AC.ward$ac))
+```
+
+```{r}
+# Plotting dendogram using the highest AC ( Ward Linkage )
+pltree(AC.ward,cex = 0.6,hang = -1, main = "Dendogram of AGNES")
+rect.hclust(as.hclust(AC.ward), k = 3, border = 1:3)
+```
+```{r}
+# Using DIANA method
+wine.DIANA <- diana(num.only)
+
+# Plotting dendogram for DIANA method
+pltree(wine.DIANA, main = "Dendrogram for DIANA", cex = 0.6, hang = -1)
+rect.hclust(as.hclust(wine.DIANA), k = 3, border = 1:3)
+```
+
+Interpretation :
+
+In this analysis, both AGNES (agglomerative) and DIANA (divisive) hierarchical clustering methods were used on the wine dataset to assess its basic organization. Among many linkage methods tested in AGNES, the Ward linkage technique yielded the highest agglomerative coefficient, indicating the most cohesive clustering. As a result, the Ward method was selected as being for further analysis. Dendrograms have been generated for both AGNES and DIANA, in order to highlight a 3-cluster solution through visual separation. Upon comparison, the AGNES dendrogram displayed more distinct and well-separated clusters, to suggest clearer boundaries between groups. On the contrary, the DIANA dendrogram produced a few less defined separations. The clusters were appearing a bit more overlapped and imbalanced. This suggests AGNES with Ward linkage is suitable for this dataset, for providing stronger inter-cluster separation and compact intra-cluster similarity. The hierarchical structure visualized through AGNES supports a generally interpretable clustering outcome, making it a relatively better choice for segmenting the wine data. In general, the results do serve to reinforce how AGNES is effective with Ward linkage over DIANA as it reveals meaningful clusters in the dataset.
+
+
+## Question 1.B  Compare the agglomerative coefficient (AC) of AGNES with the divisive 
+coefficient (DC) of DIANA. Which method provides a more cohesive clustering structure based on 
+the coefficients?
+
+```{r}
+# Comparing the  coefficients of AGNES and DIANA.
+AC.ward$ac
+wine.DIANA$dc
+```
+Interpretation :
+
+Here, we calculated also compared the clustering performance of AGNES and DIANA using their respective coefficients. The agglomerative coefficient (AC) value for AGNES was 0.9419172, while the divisive coefficient (DC) value for DIANA was 0.8000096. Both coefficients lie in the range from 0 to 1, in which values that are closer to 1 indicate a stronger and more cohesive clustering structure. The higher coefficient does suggest that such clustering method better captures the natural structure within the data. According to these results, AGNES outperformed DIANA regarding cluster cohesion within the wine dataset. A higher AC value, in some instances, for AGNES implies that its clusters, to some degree, are more compact and well-separated in comparison to those produced via DIANA. This quantitative finding aligns to the dendrogram visualizations, in which AGNES showed more clear, more distinct clusters. AGNES is therefore deemed more appropriate for this dataset when using Ward linkage, because it is effective. This provides a more reliable clustering outcome that is interpretable. That comparison seems to support that conclusion, which indicates the agglomerative approach is better suited to the wine data than is the divisive method.
+
+
+
+## Question.2.A  For each of the categorical variables, namely, Alcohol_Level, Ash_Content, Color_Intensity_Group, calculate the median of the corresponding numeric variable (Alcohol, Ash, Color_Intensity).
+
+```{r}
+# Calculating medians for Alchohol level
+alc.median<- wine.data %>%
+  group_by(Alcohol_Level) %>%
+  summarize(median_alcohol = median(Alcohol))
+
+alc.median
+```
+
+```{r}
+# Calculating medians for Ash content
+ash.median<- wine.data %>%
+  group_by(Ash_Content) %>%
+  summarize(median_ash = median(Ash))
+
+ash.median
+```
+
+```{r}
+# Calculating medians for Color Intensity group
+col.median<- wine.data%>%
+  group_by(Color_Intensity_Group)%>%
+  summarize(median_color = median(Color_Intensity))
+
+col.median
+```
+
+Interpretation : 
+
+Here, the median values for numeric variables—Alcohol, Ash, and Color_Intensity—were each calculated for groupings of their respective categories: Alcohol_Level, Ash_Content, and Color_Intensity_Group. The median Alcohol values showed some clear separation across each High, Medium, and Low group, with approximate differences from 0.8 to 0.9% between one level and the next. This difference, consistent across wines, supports their classification that is based on alcohol content. In a similar way, the Ash_Content categories demonstrated a progression that was steady, with the median values differing by about 0.23 to 0.30 units between levels, indicating separations though meaningful and smaller. The greatest variation was observed throughout the Color_Intensity_Group. The difference in median values between the Dark and Moderate categories was about 2.605, as between Moderate and Light, it was near 2.145. These gaps of larger size highlight separation that is stronger in intensity levels of color among wines. Generally, such median comparisons validate the appropriateness of the categorical groupings. These are used in the dataset. Each group shows a clear and distinct difference in numeric values, which strengthens the classification's effect and gives helpful understandings into feature differences across wines.
+
+
+## Question.2.B Create bar plots to visualize these median values across different levels of the 
+categorical variables
+
+```{r}
+# Creating a bar plot of median alcohol values
+ggplot(alc.median, aes(x = Alcohol_Level, y = median_alcohol, fill = Alcohol_Level)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Median Alcohol by Alcohol Level", x = "Alcohol Level", y = "Median Alcohol") +
+  theme_minimal()
+```
+```{r}
+# Creating a bar plot of median ash values
+ggplot(ash.median, aes(x = Ash_Content, y = median_ash, fill = Ash_Content)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Median Ash by Ash Content", x = "Ash Content", y = "Median Ash") +
+  theme_minimal()
+```
+```{r}
+# Creating a bar plot of median color intensity values
+ggplot(col.median, aes(x = Color_Intensity_Group, y = median_color, fill = Color_Intensity_Group)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Median Color Intensity by Group", x = "Color Intensity Group", y = "Median Color Intensity") +
+  theme_minimal()
+```
+
+## Question.2.C. What do the median values suggest about the distribution of the numeric variables across the different categories? What insights can you derive regarding the characteristics of the wines?
+
+Interpretation :
+
+The visual analysis of median values across the categorical variables—Alcohol_Level, Ash_Content, as well as Color_Intensity_Group—offers detailed understandings into structure and relationships within the wine dataset. Through the creation of some bar plots, and also via adjustment to the y-axis scales, we improved the interpretability for subtle but meaningful differences among the various categories.
+
+Alcohol level :
+
+The median alcohol content increases across the categories of Low (12.08%), Medium (13.05%), and High (13.86%), showing a difference of 0.8–1% between each group. These differences, though numerically minute, are important. They matter in the wine analysis context. To further depict these distinctions, the y-axis scale was adjusted using coord_cartesian() to begin precisely at 11%, avoiding visual compression and allowing the differences to stand out. This smooth progression fully validates that classification, and it suggests that alcohol content is indeed a distinguishing characteristic among several of the wines.
+
+Ash Content :
+
+Likewise, the Ash_Content categories show a logical progression with consistency: Low (2.17), Moderate (2.40), and High (2.70). The difference of from around 0.23 to 0.30 units between said levels supports the effectiveness of this categorization. By narrowing down the y-axis scale so that it ranges from 2.0 to 3.0, the chart makes for differences between groups clearer. The ash content differences are less dramatic than those in alcohol or color intensity. They are still meaningful in wine chemistry as well as contribute to classification decisions.
+
+Color Intensity :
+
+Observable differences appear inside the Color_Intensity_Group, where certain median values each increase sharply: Light (2.90), Moderate (5.05), and Dark (7.65). The difference between Light and Moderate is roughly 2.15, while the difference between Moderate and Dark is near 2.60. This entire range depicts a complete separation between categories. Further adjustment of the y-axis improves the clarity of the differences. This major increase implies color intensity varies a lot and might help classify wine types, since darker wines are richer.
+
+Insights :
+
+The upward trends throughout each of the three categorical features imply correlations exist. Wines that possess higher alcohol content might also show elevated ash levels with darker color intensity, pointing in the direction of a potential cluster among premium and full-bodied wines. The features in this interrelationship could be used in predictive modeling, in quality assessment, or in wine classification. Additionally, the clear separation of categories, across all three plots, does confirm that these variables had been mindfully grouped, as well as being meaningful in the comprehension of wine characteristics. These understandings support further investigation into multivariate relationships. For deeper analysis, these features could be integrated into machine learning or clustering models.
+
+
+## Q.3.A. Considering the results from AGNES and DIANA, which hierarchical clustering 
+technique is more appropriate for analyzing the wine dataset? Compare the results obtained from AGNES and DIANA, focusing on the number of clusters formed and the quality of separation. Discuss any meaningful patterns or insights observed in the clusters. 
+
+```{r}
+# AGNES clusters through Ward linkage
+print(paste("Best AGNES AC (Ward):", round(AC.ward$ac, 4)))
+```
+```{r}
+# DIANA clusters
+print(paste("DIANA DC:", round(wine.DIANA$dc, 4)))
+```
+Interpretation :
+
+Based on the hierarchical clustering results from the wine dataset, AGNES (Agglomerative Nesting) with the Ward linkage proves to be more effective than that of DIANA (Divisive Analysis). This conclusion is supported both in quantity and in vision. For AGNES, the agglomerative coefficient (AC) came to 0.9419, and for DIANA, the divisive coefficient (DC) came to 0.8000. These coefficients denote the degree of clustering structure. They also denote its cohesiveness. A value that is closer to 1 suggests clusters being better defined. Since AGNES had a higher AC, it implies that the clusters formed by this method are more compact and better separated, indicating greater internal consistency within clusters and more clear boundaries between them.
+
+When comparing the dendrograms generated by the two methods, the AGNES dendrogram—especially using Ward’s method—showed three distinct, as well as well-balanced, clusters with minimal overlap. The branches were equally distributed and distinctly segmented, suggesting that the wines inside each cluster share related characteristics. In contrast, the DIANA dendrogram exhibited less distinct separation, some clusters appearing imbalanced as well as overlapping, indicating the clustering structure was not as clear or reliable. This visual analysis reinforces the numerical comparison and suggests AGNES with Ward linkage completely captures the structure of the wine dataset with more accuracy.
+
+Furthermore, certain meaningful patterns were observed upon analyzing the clusters with relation to key wine attributes such as Alcohol, Ash, and Color Intensity. By the calculation of median values for these numeric variables from across their respective categorical groupings (e.g., Alcohol_Level, Ash_Content, and Color_Intensity_Group), it became clear to see there were consistent and meaningful differences across the groups. For example, median alcohol levels increased steadily from Low to High categories, and a parallel trend was seen with ash and color intensity. These trends do indicate the categorical groupings' validity, and they reflect true differences inside wine characteristics. It seems AGNES clustering aligns with these groupings, as the clusters that it produced do reflect the differences in the chemical and sensory properties.
+
+Overall, AGNES using Ward linkage suits the wine dataset better than DIANA. It yields higher cluster cohesion based on that coefficient in addition to production of clearer visual separations and alignment well enough with the underlying distribution of dataset’s features. This method effectively identifies and segments wines into meaningful clusters. These clusters reflect differences in alcohol content, ash levels, and color intensity, making it a more reliable and perceptive technique for this type of data.
+
+
+## Q.3.B. Would another clustering approach, such as K-Means or DBSCAN, be more suitable for this dataset? Explain your reasoning based on the dataset properties and clustering results.
+
+```{r}
+# Reuse scaled data from before
+set.seed(1181) #Setting seed for reproducibility
+
+
+# k-Means Clustering 
+# Trying 3 clusters same as used above for agnes 
+kmeans_model <- kmeans(num.only, centers = 3, nstart = 25)
+# Visualize K-Means clustering
+fviz_cluster(kmeans_model, data = num.only , geom = "point", main = "K-Means Clustering")
+```
+```{r}
+# Silhouette Method for K-Means Clustering
+sil_kmeans <- silhouette(kmeans_model$cluster, dist(num.only))
+mean(sil_kmeans[, 3])
+```
+
+
+```{r}
+#DBSCAN Clustering
+#Estimate eps value visually
+kNNdistplot(num.only, k = 5)
+abline(h = 2.79, col = "navy") # adjust based on plot
+```
+
+```{r}
+# DBSCAN 
+dbscan_model <- fpc::dbscan(num.only, eps = 2.79,MinPts = 26)
+
+# Visualize DBSCAN result
+
+fviz_cluster(list(data = num.only, cluster = dbscan_model$cluster),
+ geom = "point", main = "DBSCAN Clustering")
+```
+
+```{r}
+# no. of clusters and noise points
+table(dbscan_model$cluster)
+```
+Based on all the outputs as well as clusters visualized, for this dataset 4 clustering approaches have already been tried, and the results are analyzed.
+
+DIANA (Divisive Analysis) and AGNES (Agglomerative Nesting) are two hierarchical clustering techniques. The dendrograms yielded from these methods show how the data gets split or merged across hierarchical steps. In the DIANA dendrogram, the clusters appear relatively unbalanced, as some groupings are visible, the overall structure seems less distinct. The AGNES dendrogram is also unbalanced, showing one or two big clusters plus smaller sections. Although hierarchical clustering helps one understand data structure at different levels, its effectiveness may be limited for datasets containing clearly defined clusters, mainly if cluster shape or size varies.
+
+DBSCAN (Density-Based Spatial Clustering of Applications with Noise) locates clusters by the density of data’s placement. It performs suitably on datasets exhibiting irregular cluster shapes, and can adequately handle outliers by labeling such points as noise. Three clusters are identified in the DBSCAN plot. There is, however, some visible overlap between these clusters, particularly the red and green ones. This overlap suggests quite clearly that DBSCAN has difficulties with distinguishing boundaries. This is between the dense regions existing in this case. DBSCAN is valuable when clusters are of varying shapes and densities. However, the dataset in question seems to have well-separated, uniform clusters, and that makes DBSCAN less optimal here.
+
+K-Means clustering, in contrast, assumes clusters feature spherical shapes with fairly similar densities. In the image, the K-Means plot shows three separated compact clusters with clarity, and little overlap to no overlap. This suggests that the dataset does align rather well with the assumptions of K-Means. The boundaries between the clusters are clearly defined, and the visual result indicates that K-Means fully captures the structure of the data. Since the clusters have balance and clarity, K-Means offers the best clustering result of the four methods, with accuracy and interpretability.
+
+In summary, while each method for clustering has strengths, K-Means seems most suitable to this dataset. It yields reasonably compact, mostly well-separated clusters mirroring the data's fundamental structure quite effectively. Hierarchical methods such as DIANA as well as AGNES offer comprehension into cluster hierarchies but may battle with cluster definition in larger or more uniform datasets. DBSCAN is valuable even for more complex structures, but does show some overlap here. Therefore, with the basis on clustering results in addition to the apparent structure within the dataset, K-Means is a preferred approach.
