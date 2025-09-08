@@ -1,0 +1,156 @@
+---
+title: "Assignment 1 FML 64060"
+author: "Pooja Babu"
+date: "2025-02-01"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+
+```{r}
+#Loading all libraries
+
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(psych)
+library(tinytex)
+library(readr)
+library(modeest)
+```
+
+## Importing the dataset
+```{r,echo=TRUE}
+df<-read_csv("C://Users//pooja//OneDrive//Documents//R Datasets//Churn.csv")
+```
+## 1.Conduct basic descriptive statistics, including head, tail,dimensions, summary, structure, mean, mode, median, and check for any missing values.
+
+```{r,echo=TRUE}
+# Finding head for the dataset. It gives first 6 rows of the dataset for all variables.
+head(df)
+```
+
+```{r, echo=TRUE}
+# Finding the tail of the dataset. It gives last 6 rows of the dataset for all variables.
+tail(df)
+```
+
+```{r}
+# Finding the dimension of the dataset.
+dim(df)
+
+```
+```{r}
+# Finding the summary of the dataset.
+summary(df)
+
+```
+```{r}
+# Finding the structure of the dataset.
+str(df)
+
+```
+
+```{r}
+# Since the dataset(df) contains both numerical and categorical variables, we apply select_if(is.numeric) function to filter the dataset and extract only the numeric columns.
+
+numcol<-df%>%select_if(is.numeric)
+```
+##Mean , Median , Mode , Missing Values
+```{r}
+# Finding mean for all the numerical columns.
+mean_df<-sapply(numcol,mean,na.rm=TRUE)
+print(mean_df)
+
+```
+```{r}
+# Finding Median for all the numerical columns.
+median_df<-sapply(numcol,median,na.rm=TRUE)
+print(median_df)
+```
+```{r}
+# Finding Mode for all the numerical columns.
+mode_df <- sapply(numcol, function(a) mfv(a, na_rm = TRUE))
+print(mode_df)
+
+```
+```{r}
+# Finding missing values in the data set.
+df_mis<-sapply(df, function(a)sum(is.na(a)))
+print(df_mis)
+
+```
+
+## 2.Write an interpretation of your analysis in part 1 in R Markdown report.
+
+The data set used here contains 1000 rows and 9 columns i.e. 1000 Observations and 9 variables in R terms. The primary objective of this analysis is to explore how various factors influence customer df and derive insights through descriptive statistics. The head command was used to view the first few rows of the dataset for all the variables, if a specific number of rows has to be viewed it can be done by using head(df, n=10). Here the number of rows that needs to be viewed can be specified using n. Similarly the tail command was used to view the last few rows of the data. Here since the number is not mentioned it views first 6 rows and last 6 rows by default. The structure of the data was analyzed using str command, and it showed that all the variables in the dataset were numeric except for the Contract Type column which was categorical. The summary table shows the key statistics such as Mean, Median, and quantiles for different variables in the dataset and it was analyzed using summary command. Descriptive statistics was used here to gain insights about the customer behavior. Numeric columns have been extracted from the dataset and assigned to numcols to avoid error for the categorical column. Mean is used to find the average value of the observations in the dataset. Median is used to find the middle value for the observations in the dataset. Mode is used to find out the value that has repeated for more number of times. Next, the is.na command was used to check if there are any missing values in the dataset, and the result revealed that there weren't any missing values.   Most of the variables have similar mean and median values, which means there isn't much high difference and that the data is well balanced. The mean value for Churn is 0.504, which means approximately 50% of the customers stay while 50% leave. If the average monthly charge for churned customers is higher, then the pricing factor might be the reason they are leaving. When checking the mode for all the variables, it was observed that Data Usage, Voice Minutes, Monthly Charges, and Roaming Usage did not have a mode as all the values were unique. Also, the mode for Churn was 1, which meant more customers were leaving than staying in the company. The mode was also calculated for Contract type and the most common contract type customers chose was monthly type. It was also observed that majority of the customers call customer service at least 2 times indicating recurring or unresolved issues. Data usage has huge difference in minimum and maximum usage alarming further investigation.
+
+
+## 3.Select and compare two or more variables from the dataset. Create a table for the selected variables using the df(dataframe) and select commands.Provide summary statistics or visualizations to support your comparison.
+
+```{R,echo=TRUE}
+
+# Creating a table for MonthlyCharges and Churn
+
+tb<-df %>% select(MonthlyCharges, Churn)
+head(tb)
+```
+```{r}
+# Summary statistics for MonthlyCharges and Churn
+
+summary(tb)
+```
+
+```{r}
+# Analyzing the correlation between MonthlyCharges and Churn
+
+#Ensuring the values in Churn are numerical
+df$Churn<-as.numeric(df$Churn)
+
+# Finding the correlation
+CR<- cor(df$Churn, df$MonthlyCharges)
+
+print(CR)
+```
+
+```{r}
+# Since the value of the correlation is close to 0, it can be said that there is almost no relationship between MonthlyCharges and Churn. The impact of MonthlyCharges on Churn is very low in this dataset.
+```
+
+```{r}
+# Visualisations to support the comparison between MonthlyCharges and Churn
+
+library(ggplot2)
+
+ggplot(df, aes(x = factor(Churn), y = MonthlyCharges, fill = factor(Churn))) +
+    geom_boxplot() +
+    labs(title = "Box Plot: Monthly Charges by Churn",
+         x = "Churn (0 = Stayed, 1 = Churned)",
+         y = "Monthly Charges",
+         fill = "Churn Status") +
+    theme_minimal()
+```
+
+```{r}
+# Analysis for the Box Plot
+
+#The Box plot analysis shows that the churned customers are higher than stayed customers in both low monthly charges and high monthly charges, indicating price alone cannot be considered as the main reason for Churn. Other factors like service quality, contract options, network performance, and customer support could also influence their decision and further analysis is required to make new decisions which can help in retaining customers and attracting new ones.
+```
+
+## 4.Transform at least one variable and generate a plot using‘ggplot’ for the transformed variable.
+
+```{r}
+# Log Transformation of VoiceMinutes
+
+vm <- df %>% mutate(LogVoiceMinutes = log(VoiceMinutes + 1))
+
+# Generating a plot for the transformed variable.
+
+
+ggplot(vm, aes(x = LogVoiceMinutes)) +
+    geom_density(fill = "Red", color = "Black", alpha = 0.4) +
+    labs(x = "Log(VoiceMinutes)", y = "Density", 
+         title = "Density Plot of Log-Transformed VoiceMinutes") +
+    theme_minimal()
+```
