@@ -1,0 +1,198 @@
+---
+title: "Assignment 3"
+author: "Pooja Babu"
+date: "2025-02-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Loading all the required libraries
+
+```{r cars}
+library(class)
+library(gmodels)
+library(caret)
+library(tinytex)
+library(e1071)
+library(readr)
+library(pROC)
+```
+
+## Data Preparation
+
+### 1.Loading the dataset
+
+```{r}
+Vehicles_sales <- read_csv("C:/Users/pooja/OneDrive/Desktop/FML Assignments/3rd Assignment/Vehicles_Sales.csv")
+```
+```{r}
+# Removing duplicate records
+Vehicles_sales <- Vehicles_sales[!duplicated (Vehicles_sales), ]
+```
+
+### 2.Drop YEAR_ID and PRODUCTLINE variables.
+
+```{r}
+vldata <- Vehicles_sales[ ,-c(9,10)] 
+```
+
+### 3.Transforming the categorical variables into dummy variables.
+
+```{r}
+# Only DEALSIZE needs to be converted to factor 
+vldata$DEALSIZE <- as.factor(vldata$DEALSIZE) ## We are converting the DEALSIZE to factors as it contains all the categorical variables.
+```
+
+```{r}
+# convert DEALSIZE to dummy variables 
+groups <- dummyVars(~., data = vldata) ## Here we are using "~." which will apply the transformation to all the columns.
+```
+
+```{r}
+# Create Dummy variable.names 
+vehicles_data <- as.data.frame(predict(groups, vldata))
+```
+
+## Question 1. Partition the data into Training (50%), Validation (30%), and Testing (20%) sets.
+
+```{r}
+# Setting the seed for reproducibility.
+set.seed(100)
+
+
+### Split data into training (50%), validation (30%), and testing (20%)
+training.index <- createDataPartition(vehicles_data$STATUS, p = 0.5, list = FALSE)  # Creating a train index from where we extract 50% of the data from the complete dataset 
+
+train.df <- vehicles_data[training.index, ] #Here a training dataset is created which has 50% of the data extracted randomly
+
+temp.df <- vehicles_data[-training.index, ] # Here we create a temporary index to extract the remaining data from the complete dataset but excluding the ones which are already in the training dataset.
+
+validation.index <- createDataPartition(temp.df$STATUS, p = 3/5, list = FALSE) # Creating a valid index to further divide the dataset into validation and test data.
+
+valid.df <- temp.df[validation.index, ] #Here we are extracting the data from the valid index 
+
+test.df <- temp.df[-validation.index, ] #Here we are extracting the data from the valid index but excluding the ones which are already present in valid_df
+```
+
+### Checking the dimensions of the partitioned datasets.
+```{r}
+dim(train.df)
+```
+```{r}
+dim(valid.df)
+```
+```{r}
+dim(test.df)
+```
+### Here the response variable is "STATUS". So we remove it while normalizing the data
+```{r}
+norm.values <- preProcess(train.df[, -6], method=c("center", "scale")) 
+```
+
+```{r}
+###Normalizing all the three dataset to avoid biasness of the results. But making sure the "STATUS" column is excluded.
+training_normalised <- predict(norm.values, train.df[,-6]) 
+valid_normalised <- predict(norm.values, valid.df[,-6]) 
+test_normalised <- predict(norm.values, test.df[,-6])
+```
+
+### Checking if there are any duplicate values in the datasets.
+```{r}
+duplicates_all_three <- intersect(intersect(training_normalised, valid_normalised), test_normalised)
+
+print(duplicates_all_three) # The output resulted in empty list indicating there are no duplicate values in the datasets.
+```
+## Question 2
+```{r}
+# Defining the new vehicle as a data frame
+new_vehicle <- data.frame(ORDERNUMBER = 10322,QUANTITYORDERED = 50,PRICEEACH = 100,ORDERLINENUMBER = 6,SALES = 12536.5,QTR_ID = 4,MONTH_ID = 11,MSRP = 127,DEALSIZE.Large = 1,DEALSIZE.Small = 0,DEALSIZE.Medium = 0)
+```
+### Normalize the new vehicle using the same scaling as training data
+```{r}
+newvehicle_norm <- predict(norm.values,new_vehicle)
+newvehicle_norm
+```
+### k-NN classification with value of K = 1
+
+```{r}
+knn_prediction <- knn(train = training_normalised, 
+                      test = newvehicle_norm, 
+                      cl = train.df$STATUS, k = 1)
+knn_prediction
+```
+```{r}
+# By using the value of K as 1 , the model predicted the outcome 1. 
+#1 indicates shipped.
+#So , the vehicle is shipped.
+```
+
+## Question 3. What is a suitable k value that balances between overfitting and underfitting?
+```{r}
+set.seed(100)
+# Create the accuracy data frame
+accuracy.df <- data.frame(k = seq(1, 15, 1), overallaccuracy = rep(0, 15))
+
+# Loop over different values of k and compute accuracy
+for(i in 1:15) {
+  pred <- knn(training_normalised, valid_normalised, train.df$STATUS, k = i)
+  cm <- confusionMatrix(pred, as.factor(valid.df$STATUS))
+  accuracy.df$overallaccuracy[i] <- cm$overall["Accuracy"]
+}
+```
+
+```{r}
+# Find the k value corresponding to the highest accuracy
+best_k <- accuracy.df$k[which.max(accuracy.df$overallaccuracy)]
+cat("Optimal K value is",best_k,"with the highest accuracy of",max(accuracy.df$overallaccuracy))
+
+```
+```{r}
+accuracy.df
+```
+
+```{r}
+plot(accuracy.df$k, accuracy.df$overallaccuracy, type = "b", pch = 20, col = "red",
+     xlab = "K Value", ylab = "Accuracy", main = "K vs Accuracy for KNN")
+lines(accuracy.df$k, accuracy.df$overallaccuracy, col = "blue")
+```
+```{r}
+#Convert STATUS to numeric (1 for ‘Shipped’, 0 for ‘Cancelled’)
+
+test.df$STATUS <- as.numeric(as.character(test.df$STATUS))
+
+
+#Predict probabilities instead of hard labels
+
+knn_probs <- as.numeric(knn(training_normalised, test_normalised, train.df$STATUS, k = best_k, prob = TRUE))
+```
+
+```{r}
+#Generate ROC curve
+
+roc_curve <- roc(test.df$STATUS, knn_probs)
+
+#Plot ROC Curve
+
+plot(roc_curve, col = "blue", main = "ROC Curve for k-NN Model")
+
+# Using the value of K = 5 in test data to measure the accuracy
+pred.test <- knn(training_normalised, test_normalised, train.df$STATUS, k = 5)
+```
+
+```{r}
+# Creating a confusion matrix for the test values
+cm.test <- confusionMatrix(pred.test,as.factor(test.df$STATUS), positive = "1")
+cm.test
+```
+```{r}
+CrossTable(x=test.df$STATUS,y=pred.test,prop.chisq = FALSE, prop.t = FALSE, prop.r = FALSE)
+```
+```{r}
+# Here in the confusion matrix we can see that for the test data, when we used the value of k=5, the accuracy is 0.9813. The accuracy here is calculated by 
+# Accuracy=  TP+TN/Total Observations.
+# That means the model has predicted the right outcome 98%.
+```
+
